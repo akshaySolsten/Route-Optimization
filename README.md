@@ -81,7 +81,7 @@ If there are no active BigQuery rows for that DRS, `optimized_count` is `0` and 
 | Firestore `consignments` | Source consignment documents |
 | Firestore `drs_starting_point` | Hub/depot lat/lon and address, keyed by DRS number |
 | Firestore `consignments_routing` | Routing snapshot write-back (commented out in the pipelines) |
-| BigQuery `consignments_routing` | System of record for geocode fields, sequence, and clusters |
+| BigQuery `consignments_routing_test` | System of record for geocode fields, sequence, and clusters |
 
 Save writes geocode data and leaves grouping as `UNASSIGNED` with `starting_*` placeholders. Sort fills `geohash_group_id`, `planned_*` / `actual_*` sequence, and the real starting point.
 
