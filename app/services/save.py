@@ -68,7 +68,7 @@ def build_row(
         "area": area or "UNKNOWN",
         "geohash_locality_loc": geohash_exact[:GEOHASH_LOCALITY_LEN] if geohash_exact else None,
         "geohash_building_loc": geohash_exact[:GEOHASH_BUILDING_LEN] if geohash_exact else None,
-        "geohash_exact_loc": geohash_exact,
+        "geohash_exact_loc": geohash_exact or "",
         "pincode": pincode,
         "exception_flag": exception_flag,
         "is_commercial": is_commercial,
