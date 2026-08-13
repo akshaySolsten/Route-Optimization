@@ -3,10 +3,11 @@ from collections import defaultdict
 
 from app.db.bigquery import (
     fetch_active_rows_for_drs,
-    fetch_assigned_rows_for_drs,
+    # fetch_assigned_rows_for_drs,
     write_group_assignments,
 )
-from app.db.firestore import get_drs_starting_point, upsert_consignments_routing
+from app.db.firestore import get_drs_starting_point
+# from app.db.firestore import upsert_consignments_routing
 from app.services.tsp import solve_route_order
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ def run_sorting_pipeline(drs_no):
     updates = compute_groups_and_sequence(rows, drs_no, start_meta or {})
     if updates:
         write_group_assignments(updates)
-        upsert_consignments_routing(fetch_assigned_rows_for_drs(drs_no))
+        # Firestore write disabled — routing data stays in BigQuery only.
+        # upsert_consignments_routing(fetch_assigned_rows_for_drs(drs_no))
 
     return {"optimized_count": len(updates)}

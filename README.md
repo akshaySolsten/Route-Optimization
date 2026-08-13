@@ -6,8 +6,8 @@ It replaces the previous two Cloud Functions (`save_consignments` and `run_sorti
 
 ## What it does
 
-1. **Save** — load consignments from Firestore, geocode receiver addresses with Google Maps, upsert rows into BigQuery, then sync `consignments_routing` back to Firestore.
-2. **Sort** — load active consignments for a DRS, solve an open-path TSP from the DRS starting point with OR-Tools, write sequence/cluster fields to BigQuery, then sync Firestore.
+1. **Save** — load consignments from Firestore, geocode receiver addresses with Google Maps, and upsert rows into BigQuery. Firestore write-back of `consignments_routing` is currently commented out.
+2. **Sort** — load active consignments for a DRS, solve an open-path TSP from the DRS starting point with OR-Tools, and write sequence/cluster fields to BigQuery. Firestore write-back is currently commented out.
 
 Typical order: save consignments first, then run sorting when the driver/hub starting point exists.
 
@@ -80,7 +80,7 @@ If there are no active BigQuery rows for that DRS, `optimized_count` is `0` and 
 |-------|-----|
 | Firestore `consignments` | Source consignment documents |
 | Firestore `drs_starting_point` | Hub/depot lat/lon and address, keyed by DRS number |
-| Firestore `consignments_routing` | Routing snapshot synced after save/sort, keyed by `consignmentId` |
+| Firestore `consignments_routing` | Routing snapshot write-back (commented out in the pipelines) |
 | BigQuery `consignments_routing` | System of record for geocode fields, sequence, and clusters |
 
 Save writes geocode data and leaves grouping as `UNASSIGNED` with `starting_*` placeholders. Sort fills `geohash_group_id`, `planned_*` / `actual_*` sequence, and the real starting point.

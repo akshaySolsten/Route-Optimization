@@ -112,6 +112,7 @@ def _routing_doc_from_bq_row(row):
 
 
 def upsert_consignments_routing(rows):
+    # Currently unused: save/sort pipelines do not write routing docs to Firestore.
     fs_client = get_fs_client()
     batch = fs_client.batch()
     count = 0
