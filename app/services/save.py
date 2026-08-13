@@ -5,10 +5,8 @@ from datetime import datetime, timezone
 import pygeohash as pgh
 
 from app.config import GEOHASH_BUILDING_LEN, GEOHASH_LOCALITY_LEN, GOOGLE_MAPS_API_KEY
-from app.db.bigquery import merge_routing_rows
-# from app.db.bigquery import fetch_rows_by_consignment_ids
-from app.db.firestore import get_consignments_by_id
-# from app.db.firestore import upsert_consignments_routing
+from app.db.bigquery import fetch_rows_by_consignment_ids, merge_routing_rows
+from app.db.firestore import get_consignments_by_id, upsert_consignments_routing
 from app.services.address import (
     clean_address_for_geocoding,
     format_geocode_address,
@@ -178,9 +176,8 @@ def save_consignments_pipeline(consignment_ids):
 
     if rows_to_merge:
         merge_routing_rows(rows_to_merge)
-        # Firestore write disabled — routing data stays in BigQuery only.
-        # bq_rows = fetch_rows_by_consignment_ids([r["consignmentId"] for r in rows_to_merge])
-        # upsert_consignments_routing(bq_rows)
+        bq_rows = fetch_rows_by_consignment_ids([r["consignmentId"] for r in rows_to_merge])
+        upsert_consignments_routing(bq_rows)
 
     end_dt = datetime.now(timezone.utc)
     duration_seconds = round(time.perf_counter() - start_perf, 3)
