@@ -61,8 +61,9 @@ def build_row(
         "starting_address": "PENDING_OPTIMIZATION",
         "starting_latitude": 0.0,
         "starting_longitude": 0.0,
-        "latitude": latitude,
-        "longitude": longitude,
+        # BQ test table marks latitude/longitude REQUIRED, so failed geocodes use 0.0.
+        "latitude": float(latitude) if latitude is not None else 0.0,
+        "longitude": float(longitude) if longitude is not None else 0.0,
         "locality": locality or "UNKNOWN",
         "area": area or "UNKNOWN",
         "geohash_locality_loc": geohash_exact[:GEOHASH_LOCALITY_LEN] if geohash_exact else None,
