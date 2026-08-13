@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+requests
+pygeohash
+google-cloud-firestore
+google-cloud-bigquery
+ortools

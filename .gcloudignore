@@ -1,0 +1,10 @@
+.git/
+.cache/
+__pycache__/
+*.pyc
+.env
+env-vars.yaml
+.venv/
+venv/
+node_modules/
+desktop.ini
