@@ -140,13 +140,7 @@ $env:FIRESTORE_PROJECT = "prj-dev-hermes"
 uvicorn app.main:app --reload --port 8080
 ```
 
-Then open http://localhost:8080/docs or:
-
-```powershell
-curl http://localhost:8080/health
-curl -X POST http://localhost:8080/save-consignments -H "Content-Type: application/json" -d "{\"consignmentIds\":[\"id1\"]}"
-curl -X POST http://localhost:8080/run-sorting -H "Content-Type: application/json" -d "{\"drsno\":\"DRS123\"}"
-```
+Then open http://localhost:8080/docs or use the curl / Postman steps below (skip the `Authorization` header for local).
 
 ## Deploy to Cloud Run
 
@@ -164,5 +158,164 @@ Prefer Secret Manager for the Maps key in production instead of `--set-env-vars`
 
 After deploy, call:
 
+- `https://<service-url>/health`
 - `https://<service-url>/save-consignments`
 - `https://<service-url>/run-sorting`
+
+## Testing
+
+Set the base URL. For local use `http://localhost:8080`. For Cloud Run:
+
+```powershell
+$base = "https://route-optimization-567483485783.asia-south1.run.app"
+```
+
+If the service was deployed **without** `--allow-unauthenticated`, every request needs a Bearer token:
+
+```powershell
+$token = gcloud auth print-identity-token
+```
+
+The token expires in about an hour. Re-run `print-identity-token` if you get `401` or `403`.
+
+On Windows PowerShell, do **not** put JSON inline in `curl.exe -d '...'`. PowerShell strips quotes and FastAPI returns `json_invalid`. Write the body to a file instead.
+
+### curl — health
+
+```powershell
+curl.exe -sS -X GET "$base/health" `
+  -H "Authorization: Bearer $token"
+```
+
+Expected: `{"status":"ok"}`
+
+### curl — save consignments
+
+```powershell
+[System.IO.File]::WriteAllText("$pwd\save-body.json", '{"consignmentIds":["HRD363615390"]}')
+
+curl.exe -g -sS -m 300 -X POST "$base/save-consignments" `
+  -H "Authorization: Bearer $token" `
+  -H "Content-Type: application/json" `
+  --data-binary "@save-body.json"
+```
+
+Single consignment:
+
+```powershell
+[System.IO.File]::WriteAllText("$pwd\save-body.json", '{"consignmentId":"HRD363615390"}')
+```
+
+Several consignments:
+
+```powershell
+[System.IO.File]::WriteAllText("$pwd\save-body.json", '{"consignmentIds":["HRD363615390","HRD363615391"]}')
+```
+
+### curl — run sorting
+
+```powershell
+[System.IO.File]::WriteAllText("$pwd\sort-body.json", '{"drsno":"DRS123"}')
+
+curl.exe -g -sS -m 300 -X POST "$base/run-sorting" `
+  -H "Authorization: Bearer $token" `
+  -H "Content-Type: application/json" `
+  --data-binary "@sort-body.json"
+```
+
+Or pass DRS as a query param:
+
+```powershell
+curl.exe -g -sS -m 300 -X POST "$base/run-sorting?drsno=DRS123" `
+  -H "Authorization: Bearer $token"
+```
+
+### curl — Linux / macOS / Git Bash
+
+Quotes work normally here. Still use `-g` so `[...]` is not treated as a URL range.
+
+```bash
+BASE="https://route-optimization-567483485783.asia-south1.run.app"
+TOKEN="$(gcloud auth print-identity-token)"
+
+curl -sS -X GET "$BASE/health" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -g -sS -m 300 -X POST "$BASE/save-consignments" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"consignmentIds":["HRD363615390"]}'
+
+curl -g -sS -m 300 -X POST "$BASE/run-sorting" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"drsno":"DRS123"}'
+```
+
+Local (no token):
+
+```bash
+curl -sS http://localhost:8080/health
+curl -g -sS -X POST http://localhost:8080/save-consignments \
+  -H "Content-Type: application/json" \
+  -d '{"consignmentIds":["HRD363615390"]}'
+curl -g -sS -X POST http://localhost:8080/run-sorting \
+  -H "Content-Type: application/json" \
+  -d '{"drsno":"DRS123"}'
+```
+
+### Postman
+
+1. Create a collection, e.g. **Route Optimization**.
+2. Add a collection variable `baseUrl` = `https://route-optimization-567483485783.asia-south1.run.app` (or `http://localhost:8080`).
+3. **Auth (Cloud Run only)**  
+   - In the collection **Authorization** tab, type **Bearer Token**.  
+   - Token value: run `gcloud auth print-identity-token` in a terminal and paste the output.  
+   - Child requests can use **Inherit auth from parent**.  
+   - For local, set Authorization to **No Auth**.
+4. Create three requests:
+
+**Health**
+
+| Field | Value |
+|-------|--------|
+| Method | `GET` |
+| URL | `{{baseUrl}}/health` |
+
+**Save consignments**
+
+| Field | Value |
+|-------|--------|
+| Method | `POST` |
+| URL | `{{baseUrl}}/save-consignments` |
+| Headers | `Content-Type: application/json` |
+| Body | **raw** → **JSON** |
+
+```json
+{
+  "consignmentIds": ["HRD363615390"]
+}
+```
+
+**Run sorting**
+
+| Field | Value |
+|-------|--------|
+| Method | `POST` |
+| URL | `{{baseUrl}}/run-sorting` |
+| Headers | `Content-Type: application/json` |
+| Body | **raw** → **JSON** |
+
+```json
+{
+  "drsno": "DRS123"
+}
+```
+
+5. Send. Typical results:
+   - `200` with `"status": "ok"` or `"partial_success"` — request reached the app.
+   - `401` / `403` — missing or expired token, or your user lacks `roles/run.invoker`.
+   - `400` — missing `consignmentIds` / `drsno`.
+   - `500` with a BigQuery `Name ... not found inside T` — the target table is missing a column (for example `geocode_address`).
+
+Save can take a while (geocoding). In Postman set **Settings → Request timeout** high enough (e.g. 300000 ms), matching Cloud Run `--timeout 300`.
