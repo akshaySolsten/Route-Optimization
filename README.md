@@ -179,13 +179,44 @@ Set these once on the service (Containers → Variables). Later GitHub deploys k
 
 Prefer Secret Manager for the Maps key in production. Raise timeout and memory if DRS batches are large; sorting time grows with stop count (OR-Tools search is capped at 1–5 seconds internally).
 
-### Redeploy
+### How the team edits and deploys
 
-Push (or merge) to `main`. Watch the Cloud Build trigger, then call:
+Only **`main`** deploys. A push to `dev` or a feature branch does **not** update Cloud Run.
+
+1. Clone (or pull latest `main`):
+
+```powershell
+git clone git@github.com:Solsten-Data-Consulting-Pvt-Ltd/Route-Optimization.git
+cd Route-Optimization
+git checkout main
+git pull origin main
+```
+
+2. Create a branch. Do not commit feature work straight on `main`.
+
+```powershell
+git checkout -b feat/short-description
+```
+
+3. Edit, run locally (see **Local run**), then commit and push the branch:
+
+```powershell
+git add .
+git commit -m "Describe why this change exists."
+git push -u origin HEAD
+```
+
+4. Open a pull request into **`main`** on GitHub. Review, then merge.
+
+5. The Cloud Build trigger on `^main$` starts automatically. In GCP: **Cloud Build → History** (or the Cloud Run service **Revisions** tab). When the revision is ready, check:
 
 - `https://route-optimization-567483485783.asia-south1.run.app/health`
 - `.../save-consignments`
 - `.../run-sorting`
+
+6. Optional: keep `dev` in sync after merge (`git checkout dev; git merge main; git push origin dev`).
+
+Do **not** change env vars in git. Edit them on the Cloud Run service in the console if needed. Do not change `Procfile` or `.python-version` unless the buildpacks start command or Python version must change.
 
 ## Testing
 
