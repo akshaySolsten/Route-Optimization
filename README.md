@@ -105,7 +105,8 @@ app/
     clients.py            Shared BQ / Firestore clients
     firestore.py          Firestore reads/writes
     bigquery.py           BigQuery reads/writes
-Dockerfile
+Procfile                  Cloud Run buildpacks start command
+.python-version           Python 3.13 (ubuntu2404 builder)
 requirements.txt
 ```
 
@@ -124,7 +125,7 @@ The runtime service account needs BigQuery Data Editor (or equivalent query/upda
 
 ## Local run
 
-Python 3.11+ and Application Default Credentials (for example `gcloud auth application-default login`).
+Python 3.11+ locally (Cloud Run buildpacks use 3.13). Application Default Credentials (for example `gcloud auth application-default login`).
 
 ```powershell
 python -m venv .venv
@@ -144,23 +145,47 @@ Then open http://localhost:8080/docs or use the curl / Postman steps below (skip
 
 ## Deploy to Cloud Run
 
-From this directory:
+Deploys from GitHub via Cloud Build. A push to `main` on [Solsten-Data-Consulting-Pvt-Ltd/Route-Optimization](https://github.com/Solsten-Data-Consulting-Pvt-Ltd/Route-Optimization) builds with **Python buildpacks** (not Docker) and rolls out a new Cloud Run revision.
 
-```powershell
-gcloud run deploy route-optimization `
-  --source . `
-  --region asia-south1 `
-  --timeout 300 `
-  --set-env-vars "BQ_PROJECT=prj-dev-hermes,BQ_DATASET=Hermes_Exports,BQ_TABLE=consignments_routing_test,FIRESTORE_PROJECT=prj-dev-hermes,GOOGLE_MAPS_API_KEY=YOUR_KEY"
-```
+### Service
 
-Prefer Secret Manager for the Maps key in production instead of `--set-env-vars`. Raise `--timeout` and memory if DRS batches are large; sorting time grows with stop count (OR-Tools search is capped at 1–5 seconds internally).
+| Setting | Value |
+|---------|--------|
+| Service name | `route-optimization` |
+| Region | `asia-south1` |
+| URL | `https://route-optimization-567483485783.asia-south1.run.app` |
+| Authentication | Require authentication (IAM) |
+| Billing | Request-based |
+| Ingress | All |
+| Timeout | 300 seconds |
+| Build type | Google Cloud buildpacks (Python) |
+| Branch trigger | `^main$` |
+| Build context | `/` |
+| Function target | leave empty |
 
-After deploy, call:
+The repo root has a `Procfile` (`uvicorn app.main:app`) and `.python-version` (`3.13`). The ubuntu2404 builder does not support Python 3.11.
 
-- `https://<service-url>/health`
-- `https://<service-url>/save-consignments`
-- `https://<service-url>/run-sorting`
+### Environment variables (Cloud Run console)
+
+Set these once on the service (Containers → Variables). Later GitHub deploys keep them; you do not pass them in a deploy command.
+
+| Variable | Example |
+|----------|---------|
+| `BQ_PROJECT` | `prj-dev-hermes` |
+| `BQ_DATASET` | `Hermes_Exports` |
+| `BQ_TABLE` | `consignments_routing_test` |
+| `FIRESTORE_PROJECT` | `prj-dev-hermes` |
+| `GOOGLE_MAPS_API_KEY` | your key |
+
+Prefer Secret Manager for the Maps key in production. Raise timeout and memory if DRS batches are large; sorting time grows with stop count (OR-Tools search is capped at 1–5 seconds internally).
+
+### Redeploy
+
+Push (or merge) to `main`. Watch the Cloud Build trigger, then call:
+
+- `https://route-optimization-567483485783.asia-south1.run.app/health`
+- `.../save-consignments`
+- `.../run-sorting`
 
 ## Testing
 
@@ -170,7 +195,7 @@ Set the base URL. For local use `http://localhost:8080`. For Cloud Run:
 $base = "https://route-optimization-567483485783.asia-south1.run.app"
 ```
 
-If the service was deployed **without** `--allow-unauthenticated`, every request needs a Bearer token:
+The service requires IAM authentication, so every request needs a Bearer token:
 
 ```powershell
 $token = gcloud auth print-identity-token
@@ -318,4 +343,4 @@ curl -g -sS -X POST http://localhost:8080/run-sorting \
    - `400` — missing `consignmentIds` / `drsno`.
    - `500` with a BigQuery `Name ... not found inside T` — the target table is missing a column (for example `geocode_address`).
 
-Save can take a while (geocoding). In Postman set **Settings → Request timeout** high enough (e.g. 300000 ms), matching Cloud Run `--timeout 300`.
+Save can take a while (geocoding). In Postman set **Settings → Request timeout** high enough (e.g. 300000 ms), matching the Cloud Run timeout of 300 seconds.
