@@ -21,33 +21,12 @@ from app.services.geocoding import (
 logger = logging.getLogger(__name__)
 
 
-def build_row(
-    drs_no,
-    drs_id,
-    driver_numeric_id,
-    consignment_id,
-    receiver_address,
-    receiver_name,
-    geocode_address_str,
-    latitude,
-    longitude,
-    locality,
-    area,
-    geohash_exact,
-    pincode,
-    exception_flag,
-    is_commercial,
-    formatted_address=None,
-    place_id=None,
-    location_type=None,
-    street_number=None,
-    route_name=None,
-    district=None,
-    state=None,
-    country_code=None,
-    geocode_status="success",
-    geocode_error=None,
-):
+def build_row(drs_no, drs_id, driver_numeric_id, consignment_id, receiver_address, receiver_name,
+              geocode_address_str, latitude, longitude, locality, area, geohash_exact, pincode,
+              exception_flag, is_commercial, formatted_address=None, place_id=None, location_type=None,
+              street_number=None, route_name=None, district=None, state=None, country_code=None,
+              geocode_status="success", geocode_error=None):
+    """Build one row dict for BigQuery/Firestore."""
     return {
         "drsNo": drs_no,
         "drsId": drs_id,
@@ -59,14 +38,13 @@ def build_row(
         "starting_address": "PENDING_OPTIMIZATION",
         "starting_latitude": 0.0,
         "starting_longitude": 0.0,
-        # BQ test table marks latitude/longitude REQUIRED, so failed geocodes use 0.0.
-        "latitude": float(latitude) if latitude is not None else 0.0,
-        "longitude": float(longitude) if longitude is not None else 0.0,
+        "latitude": latitude,
+        "longitude": longitude,
         "locality": locality or "UNKNOWN",
         "area": area or "UNKNOWN",
         "geohash_locality_loc": geohash_exact[:GEOHASH_LOCALITY_LEN] if geohash_exact else None,
         "geohash_building_loc": geohash_exact[:GEOHASH_BUILDING_LEN] if geohash_exact else None,
-        "geohash_exact_loc": geohash_exact or "",
+        "geohash_exact_loc": geohash_exact,
         "pincode": pincode,
         "exception_flag": exception_flag,
         "is_commercial": is_commercial,
@@ -124,8 +102,9 @@ def save_consignments_pipeline(consignment_ids):
         consignment_id = data.get("consignmentId") or doc.id
         receiver = data.get("receiver") or {}
 
-        receiver_name = clean_address_for_geocoding(normalize_to_single_line(str(receiver.get("name") or "")))
-        receiver_address = clean_address_for_geocoding(normalize_to_single_line(str(receiver.get("address") or "")))
+        receiver_name = normalize_to_single_line(str(receiver.get("name") or ""))
+        receiver_address = normalize_to_single_line(str(receiver.get("address") or ""))
+        
         drs_no = str(data.get("drsNo") or "").strip()
         drs_id = str(data.get("drsId") or "").strip()
         driver_numeric_id = data.get("driverNumericId")
